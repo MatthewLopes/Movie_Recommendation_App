@@ -21,13 +21,8 @@ shinyUI(dashboardPage(
                 tabItems(
                   tabItem(tabName = "genre",
                           h2("Recommendations by Genre"),
-                          selectInput("genre", "Genre:",
-                                      c("Cylinders" = "cyl",
-                                        "Transmission" = "am",
-                                        "Gears" = "gear")),
-                          radioButtons("top5", "Top 5:",
-                                       c("Most Popular" = "popular",
-                                         "Highest Rating" = "rating")),
+                          uiOutput('genre_list'),
+                          uiOutput('top5')
                   ),
                   
                   tabItem(tabName = "rating",

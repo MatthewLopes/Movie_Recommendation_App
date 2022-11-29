@@ -27,10 +27,8 @@ colnames(movies) = c('MovieID', 'Title', 'Genres')
 movies$MovieID = as.integer(movies$MovieID)
 movies$Title = iconv(movies$Title, "latin1", "UTF-8")
 grouped_genres = unique(movies$Genres)
-#print(grouped_genres)
-#all_genres = strapply(grouped_genres, '|', simplify = c)
-all_genres = strsplit(grouped_genres, "|")
-print(all_genres)
+all_genres = strsplit(grouped_genres, "\\|")
+unique_genres = sort(unique(unlist(all_genres, recursive = FALSE)))
 
 small_image_url = "https://liangfgithub.github.io/MovieImages/"
 movies$image_url = sapply(movies$MovieID, 
@@ -47,11 +45,21 @@ shinyServer(function(input, output, session) {
       list(fluidRow(lapply(1:num_movies, function(j) {
         list(box(width = 2,
                  div(style = "text-align:center", img(src = movies$image_url[(i - 1) * num_movies + j], height = 150)),
-                 #div(style = "text-align:center; color: #999999; font-size: 80%", books$authors[(i - 1) * num_books + j]),
                  div(style = "text-align:center", strong(movies$Title[(i - 1) * num_movies + j])),
                  div(style = "text-align:center; font-size: 150%; color: #f0ad4e;", ratingInput(paste0("select_", movies$MovieID[(i - 1) * num_movies + j]), label = "", dataStop = 5)))) #00c0ef
       })))
     })
+  })
+  
+  output$genre_list <- renderUI({
+    selectInput("genre", "Genre:",
+                unique_genres)
+  })
+  
+  output$top5 <- renderUI({
+    radioButtons("top5", "Top 5:",
+                 c("Highest Rating" = "rating",
+                   "Most Popular" = "popular"))
   })
   
   # Calculate recommendations when the sbumbutton is clicked
