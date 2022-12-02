@@ -5,6 +5,7 @@
 # source('functions/similarity_measures.R') # similarity measures
 
 library(gsubfn)
+library(tidyverse)
 
 # define functions
 get_user_ratings = function(value_list) {
@@ -19,6 +20,13 @@ get_user_ratings = function(value_list) {
 
 # read in data
 myurl = "https://liangfgithub.github.io/MovieData/"
+ratings = read.csv(paste0(myurl, 'ratings.dat?raw=true'), 
+                   sep = ':',
+                   colClasses = c('integer', 'NULL'), 
+                   header = FALSE)
+colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
+ratings = as.data.frame(ratings)
+ratings = ratings[, !(names(ratings)) %in% c("Timestamp")]
 movies = readLines(paste0(myurl, 'movies.dat?raw=true'))
 movies = strsplit(movies, split = "::", fixed = TRUE, useBytes = TRUE)
 movies = matrix(unlist(movies), ncol = 3, byrow = TRUE)
@@ -34,7 +42,28 @@ small_image_url = "https://liangfgithub.github.io/MovieImages/"
 movies$image_url = sapply(movies$MovieID, 
                           function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 
+
+movie_rating_data <- merge(x=movies, y=ratings, by="MovieID")
+
+
+get_movies_in_genre = function(genre) {
+  
+  
+  return(genre_list)
+}
+
+get_most_popular_or_ratings = function(genre_list, movie_rating_criteria) {
+  
+  
+  return(movies)
+}
+
+
+
+
 shinyServer(function(input, output, session) {
+  
+  
   
   # show the movies to be rated
   output$ratings <- renderUI({
@@ -63,6 +92,33 @@ shinyServer(function(input, output, session) {
   })
   
   # Calculate recommendations when the sbumbutton is clicked
+  df_top5_popular_rating <- eventReactive(input$top5_popular_ratings_btn, {
+    withBusyIndicatorServer("btn", { # showing the busy indicator
+      # hide the rating container
+      useShinyjs()
+      jsCode <- "document.querySelector('[data-widget=collapse]').click();"
+      runjs(jsCode)
+      print(input$genre)
+      print(input$top5)
+      
+      # get the user's rating data
+      #value_list <- reactiveValuesToList(input)
+      #user_ratings <- get_user_ratings(value_list)
+      
+      value_list <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top5)
+      
+      user_results = (1:10)/10
+      user_predicted_ids = 1:10
+      recom_results <- data.table(Rank = 1:10, 
+                                  MovieID = movies$MovieID[user_predicted_ids], 
+                                  Title = movies$Title[user_predicted_ids], 
+                                  Predicted_rating =  user_results)
+      
+    }) # still busy
+    
+  }) # clicked on button
+  
+  # Calculate recommendations when the sbumbutton is clicked
   df <- eventReactive(input$btn, {
     withBusyIndicatorServer("btn", { # showing the busy indicator
       # hide the rating container
@@ -84,6 +140,28 @@ shinyServer(function(input, output, session) {
     }) # still busy
     
   }) # clicked on button
+  
+  output$results_top5_popular_rating <- renderUI({
+    num_rows <- 2
+    num_movies <- 5
+    recom_result <- df_top5_popular_rating()
+    
+    lapply(1:num_rows, function(i) {
+      list(fluidRow(lapply(1:num_movies, function(j) {
+        box(width = 2, status = "success", solidHeader = TRUE, title = paste0("Rank ", (i - 1) * num_movies + j),
+            
+            div(style = "text-align:center", 
+                a(img(src = movies$image_url[recom_result$MovieID[(i - 1) * num_movies + j]], height = 150))
+            ),
+            div(style="text-align:center; font-size: 100%", 
+                strong(movies$Title[recom_result$MovieID[(i - 1) * num_movies + j]])
+            )
+            
+        )        
+      }))) # columns
+    }) # rows
+    
+  }) # renderUI function
   
   
   # display the recommendations

@@ -22,7 +22,12 @@ shinyUI(dashboardPage(
                   tabItem(tabName = "genre",
                           h2("Recommendations by Genre"),
                           uiOutput('genre_list'),
-                          uiOutput('top5')
+                          uiOutput('top5'),
+                          withBusyIndicatorUI(
+                            actionButton("top5_popular_ratings_btn", "Click here to get your recommendations", class = "btn-warning")
+                          ),
+                          br(),
+                          tableOutput("results_top5_popular_rating")
                   ),
                   
                   tabItem(tabName = "rating",
