@@ -165,6 +165,60 @@ movies$image_url = sapply(movies$MovieID,
                           function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 
 
-test <- merge(x=movies, y=ratings, by="MovieID")
+#test <- merge(x=movies, y=ratings, by="MovieID")
+
+test = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
+
+sum(!is.na(test$GG))
+
+genre = "War"
+
+movies_with_selected_genre = test %>% filter(genre_1 == genre | genre_2 == genre | genre_3 == genre | genre_4 == genre | genre_5 == genre | genre_6 == genre)
+
+
+joined_data = inner_join(movies_with_selected_genre, ratings, by="MovieID")
+
+
+
+grouped_data = joined_data %>%
+    group_by(MovieID, Title, image_url) %>%
+    dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
+
+ordered_by_rating <- grouped_data[with(grouped_data,order(-Ratings_Mean)),]
+ordered_by_rating <- ordered_by_rating %>% filter(Count_of_Reviews > 1000)
+top_10 <- ordered_by_rating[1:10,]
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

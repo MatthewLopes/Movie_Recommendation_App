@@ -6,6 +6,7 @@
 
 library(gsubfn)
 library(tidyverse)
+library(dplyr)
 
 # define functions
 get_user_ratings = function(value_list) {
@@ -43,19 +44,36 @@ movies$image_url = sapply(movies$MovieID,
                           function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 
 
-movie_rating_data <- merge(x=movies, y=ratings, by="MovieID")
+movies = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
+
+
+#movie_rating_data <- merge(x=movies, y=ratings, by="MovieID")
 
 
 get_movies_in_genre = function(genre) {
+  movies_with_selected_genre = movies %>% filter(genre_1 == genre | genre_2 == genre | genre_3 == genre | genre_4 == genre | genre_5 == genre | genre_6 == genre)
   
   
-  return(genre_list)
+  return(movies_with_selected_genre)
 }
 
-get_most_popular_or_ratings = function(genre_list, movie_rating_criteria) {
+get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_criteria) {
+  joined_data = inner_join(movies_with_selected_genre, ratings, by="MovieID")
   
+  if(movie_rating_criteria == "rating") {
+    grouped_data = joined_data %>%
+      group_by(MovieID, Title, image_url) %>%
+      dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
+    
+    ordered_by_rating <- grouped_data[with(grouped_data,order(-Ratings_Mean)),]
+    ordered_by_rating <- ordered_by_rating %>% filter(Count_of_Reviews > 1000)
+    top_10 <- ordered_by_rating[1:10,]
+    
+  } else if(movie_rating_criteria == "popular") {
+    
+  }
   
-  return(movies)
+  return(top_10)
 }
 
 
@@ -86,33 +104,40 @@ shinyServer(function(input, output, session) {
   })
   
   output$top5 <- renderUI({
-    radioButtons("top5", "Top 5:",
+    radioButtons("top10", "Top 10:",
                  c("Highest Rating" = "rating",
                    "Most Popular" = "popular"))
   })
   
   # Calculate recommendations when the sbumbutton is clicked
-  df_top5_popular_rating <- eventReactive(input$top5_popular_ratings_btn, {
+  df_top10_popular_rating <- eventReactive(input$top10_popular_ratings_btn, {
     withBusyIndicatorServer("btn", { # showing the busy indicator
       # hide the rating container
       useShinyjs()
       jsCode <- "document.querySelector('[data-widget=collapse]').click();"
       runjs(jsCode)
-      print(input$genre)
-      print(input$top5)
       
       # get the user's rating data
       #value_list <- reactiveValuesToList(input)
       #user_ratings <- get_user_ratings(value_list)
       
-      value_list <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top5)
+      top_10_movies <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top10)
       
-      user_results = (1:10)/10
+      #print(top_10_movies)
+      
       user_predicted_ids = 1:10
       recom_results <- data.table(Rank = 1:10, 
-                                  MovieID = movies$MovieID[user_predicted_ids], 
-                                  Title = movies$Title[user_predicted_ids], 
-                                  Predicted_rating =  user_results)
+                                  MovieID = top_10_movies$MovieID[user_predicted_ids], 
+                                  Title = top_10_movies$Title[user_predicted_ids],
+                                  image_url = top_10_movies$image_url[user_predicted_ids]) 
+                                  #Predicted_rating =  user_results)
+      
+      #user_results = (1:10)/10
+      #user_predicted_ids = 1:10
+      #recom_results <- data.table(Rank = 1:10, 
+                                  #MovieID = movies$MovieID[user_predicted_ids], 
+                                  #Title = movies$Title[user_predicted_ids], 
+                                  #Predicted_rating =  user_results)
       
     }) # still busy
     
@@ -141,20 +166,22 @@ shinyServer(function(input, output, session) {
     
   }) # clicked on button
   
-  output$results_top5_popular_rating <- renderUI({
+  output$results_top10_popular_rating <- renderUI({
     num_rows <- 2
     num_movies <- 5
-    recom_result <- df_top5_popular_rating()
+    recom_result <- df_top10_popular_rating()
+    
+    print(recom_result)
     
     lapply(1:num_rows, function(i) {
       list(fluidRow(lapply(1:num_movies, function(j) {
         box(width = 2, status = "success", solidHeader = TRUE, title = paste0("Rank ", (i - 1) * num_movies + j),
             
             div(style = "text-align:center", 
-                a(img(src = movies$image_url[recom_result$MovieID[(i - 1) * num_movies + j]], height = 150))
+                a(img(src = recom_result$image_url[(i - 1) * num_movies + j], height = 150))
             ),
             div(style="text-align:center; font-size: 100%", 
-                strong(movies$Title[recom_result$MovieID[(i - 1) * num_movies + j]])
+                strong(recom_result$Title[(i - 1) * num_movies + j])
             )
             
         )        

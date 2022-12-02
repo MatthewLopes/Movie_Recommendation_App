@@ -24,10 +24,10 @@ shinyUI(dashboardPage(
                           uiOutput('genre_list'),
                           uiOutput('top5'),
                           withBusyIndicatorUI(
-                            actionButton("top5_popular_ratings_btn", "Click here to get your recommendations", class = "btn-warning")
+                            actionButton("top10_popular_ratings_btn", "Click here to get your recommendations", class = "btn-warning")
                           ),
                           br(),
-                          tableOutput("results_top5_popular_rating")
+                          tableOutput("results_top10_popular_rating")
                   ),
                   
                   tabItem(tabName = "rating",
