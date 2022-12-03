@@ -11,6 +11,8 @@ library(recommenderlab)
 library(DT)
 library(data.table)
 library(reshape2)
+library(gsubfn)
+library(tidyverse)
 ```
 
 ```{r}
@@ -199,6 +201,49 @@ top_10 <- ordered_by_rating[1:10,]
     
     ordered_by_popularity <- grouped_data[with(grouped_data,order(-Count_of_Reviews)),]
     top_10 <- ordered_by_popularity[1:10,]
+```
+
+
+```{r}
+#Using Recommender Lab
+
+myurl = "https://liangfgithub.github.io/MovieData/"
+ratings = read.csv(paste0(myurl, 'ratings.dat?raw=true'), 
+                   sep = ':',
+                   colClasses = c('integer', 'NULL'), 
+                   header = FALSE)
+colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
+i = paste0('u', ratings$UserID)
+j = paste0('m', ratings$MovieID)
+x = ratings$Rating
+tmp = data.frame(i, j, x, stringsAsFactors = T)
+Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
+rownames(Rmat) = levels(tmp$i)
+colnames(Rmat) = levels(tmp$j)
+Rmat = new('realRatingMatrix', data = Rmat)
+
+train = Rmat[1:500, ]
+test = Rmat[501, ]
+
+recommender.IBCF <- Recommender(train, method = "IBCF",
+                                parameter = list(normalize = 'center', 
+                                                 method = 'Cosine', 
+                                                 k = 30))
+
+p.IBCF <- predict(recommender.IBCF, test, type="ratings")
+
+p.IBCF <- as.numeric(as(p.IBCF, "matrix"))
+
+
+df = data.frame(levels(tmp$j), p.IBCF, stringsAsFactors = T)
+colnames(df) = c('MovieID', 'Rating')
+
+test = na.omit(df)
+
+sorted_test = test[order(test$Rating, decreasing = TRUE),]
+
+top10 = sorted_test[1:10,]
+
 ```
 
 

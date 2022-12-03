@@ -7,6 +7,7 @@
 library(gsubfn)
 library(tidyverse)
 library(dplyr)
+library(recommenderlab)
 
 # define functions
 get_user_ratings = function(value_list) {
@@ -47,9 +48,6 @@ movies$image_url = sapply(movies$MovieID,
 movies = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
 
 
-#movie_rating_data <- merge(x=movies, y=ratings, by="MovieID")
-
-
 get_movies_in_genre = function(genre) {
   movies_with_selected_genre = movies %>% filter(genre_1 == genre | genre_2 == genre | genre_3 == genre | genre_4 == genre | genre_5 == genre | genre_6 == genre)
   
@@ -85,9 +83,6 @@ get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_
 
 
 shinyServer(function(input, output, session) {
-  
-  
-  
   # show the movies to be rated
   output$ratings <- renderUI({
     num_rows <- 20
