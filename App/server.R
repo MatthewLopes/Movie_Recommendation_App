@@ -18,6 +18,41 @@ get_user_ratings = function(value_list) {
   dat[Rating == " ", Rating := 0]
   dat[, ':=' (MovieID = as.numeric(MovieID), Rating = as.numeric(Rating))]
   dat = dat[Rating > 0]
+  dat$MovieID = paste0('m', dat$MovieID)
+  test = dat
+  
+  i = paste0('u', ratings$UserID)
+  j = paste0('m', ratings$MovieID)
+  x = ratings$Rating
+  tmp = data.frame(i, j, x, stringsAsFactors = T)
+  Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
+  rownames(Rmat) = levels(tmp$i)
+  colnames(Rmat) = levels(tmp$j)
+  Rmat = new('realRatingMatrix', data = Rmat)
+  train = Rmat[1:500, ]
+  
+  recommender.IBCF <- Recommender(train, method = "IBCF",
+                                  parameter = list(normalize = 'center', 
+                                                   method = 'Cosine', 
+                                                   k = 30))
+  p.IBCF <- predict(recommender.IBCF, test, type="ratings")
+  p.IBCF <- as.numeric(as(p.IBCF, "matrix"))
+  
+  user_movie_ratings = data.frame(levels(tmp$j), p.IBCF, stringsAsFactors = T)
+  colnames(user_movie_ratings) = c('MovieID', 'Rating')
+  user_movie_ratings_without_na = na.omit(user_movie_ratings)
+  
+  sorted_pred = user_movie_ratings_without_na[order(user_movie_ratings_without_na$Rating, decreasing = TRUE),]
+  
+  top10 = sorted_pred[1:10,]
+  
+  top10$MovieID = as.numeric(substr(top10$MovieID, 2, nchar(top10['MovieID'])-1))
+
+  top10_joined_data = inner_join(top10, movies, by="MovieID")
+  
+  print(top10_joined_data)
+  
+  return(top10_joined_data)
 }
 
 # read in data

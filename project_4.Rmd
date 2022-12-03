@@ -216,6 +216,7 @@ colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
 i = paste0('u', ratings$UserID)
 j = paste0('m', ratings$MovieID)
 x = ratings$Rating
+
 tmp = data.frame(i, j, x, stringsAsFactors = T)
 Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
 rownames(Rmat) = levels(tmp$i)
@@ -244,10 +245,49 @@ sorted_test = test[order(test$Rating, decreasing = TRUE),]
 
 top10 = sorted_test[1:10,]
 
+top10$MovieID = as.numeric(substr(top10$MovieID, 2, nchar(top10['MovieID'])-1))
+
+joined_data = inner_join(top10, movies, by="MovieID")
+
 ```
 
 
 
+```{r}
+  dat = data.table(MovieID = sapply(strsplit(names(value_list), "_"), 
+                                    function(x) ifelse(length(x) > 1, x[[2]], NA)),
+                   Rating = unlist(as.character(value_list)))
+  dat = dat[!is.null(Rating) & !is.na(MovieID)]
+  dat[Rating == " ", Rating := 0]
+  dat[, ':=' (MovieID = as.numeric(MovieID), Rating = as.numeric(Rating))]
+  dat = dat[Rating > 0]
+  
+  
+df <- data.frame(MovieID  = c(1, 2, 3),
+                  Rating = c(2, 3, 4), stringsAsFactors = T)
+df$MovieID = as.numeric(df$MovieID)
+
+df$UserID = "u9999"
+df$MovieID = paste0('m', df$MovieID)
+
+joined_IBCF_test = left_join(movies, df, by="MovieID")
+
+drop <- c("Title","Genres", "image_url")
+joined_IBCF_test = joined_IBCF_test[,!(names(joined_IBCF_test) %in% drop)]
+
+joined_IBCF_test$UserID = "u9999"
+joined_IBCF_test$MovieID = paste0('m', joined_IBCF_test$MovieID)
+
+
+
+#tmp = data.frame(i, j, x, stringsAsFactors = T)
+#Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
+#UserID = 0
+new_Rmat = sparseMatrix(as.integer(df$UserID), as.integer(df$MovieID), x = df$Rating)
+rownames(new_Rmat) = levels(df$UserID)
+colnames(new_Rmat) = levels(df$MovieID)
+new_Rmat = new('realRatingMatrix', data = new_Rmat)
+```
 
 
 
