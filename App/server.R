@@ -70,7 +70,12 @@ get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_
     top_10 <- ordered_by_rating[1:10,]
     
   } else if(movie_rating_criteria == "popular") {
+    grouped_data = joined_data %>%
+      group_by(MovieID, Title, image_url) %>%
+      dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
     
+    ordered_by_popularity <- grouped_data[with(grouped_data,order(-Count_of_Reviews)),]
+    top_10 <- ordered_by_popularity[1:10,]
   }
   
   return(top_10)
