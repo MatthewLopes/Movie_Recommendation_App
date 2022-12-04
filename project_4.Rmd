@@ -254,39 +254,40 @@ joined_data = inner_join(top10, movies, by="MovieID")
 
 
 ```{r}
-  dat = data.table(MovieID = sapply(strsplit(names(value_list), "_"), 
-                                    function(x) ifelse(length(x) > 1, x[[2]], NA)),
-                   Rating = unlist(as.character(value_list)))
-  dat = dat[!is.null(Rating) & !is.na(MovieID)]
-  dat[Rating == " ", Rating := 0]
-  dat[, ':=' (MovieID = as.numeric(MovieID), Rating = as.numeric(Rating))]
-  dat = dat[Rating > 0]
   
   
-df <- data.frame(MovieID  = c(1, 2, 3),
-                  Rating = c(2, 3, 4), stringsAsFactors = T)
-df$MovieID = as.numeric(df$MovieID)
+df <- data.frame(MovieID  = c("m1", "m10", "m101", "m1004", "m11", "m112", "m113", "m114", "m110", "m211"),
+                  Rating = c(2, 3, 4, 5, 3, 2, 1, 3, 4, 1), stringsAsFactors = T)
 
-df$UserID = "u9999"
-df$MovieID = paste0('m', df$MovieID)
+movie_id = sapply(df$MovieID, toString)
 
-joined_IBCF_test = left_join(movies, df, by="MovieID")
+user_movie_ratings = matrix(0, 1, length(colnames(Rmat)))
+colnames(user_movie_ratings) = colnames(Rmat)
+rownames(user_movie_ratings) = 'u9999'
 
-drop <- c("Title","Genres", "image_url")
-joined_IBCF_test = joined_IBCF_test[,!(names(joined_IBCF_test) %in% drop)]
+user_movie_ratings[,movie_id] = df$Rating
 
-joined_IBCF_test$UserID = "u9999"
-joined_IBCF_test$MovieID = paste0('m', joined_IBCF_test$MovieID)
+Rmat_user_movie_ratings = as(user_movie_ratings, 'realRatingMatrix')
 
 
+p.IBCF <- predict(recommender.IBCF, Rmat_user_movie_ratings, type="ratings")
+#sum(!is.na(p.IBCF))
 
-#tmp = data.frame(i, j, x, stringsAsFactors = T)
-#Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
-#UserID = 0
-new_Rmat = sparseMatrix(as.integer(df$UserID), as.integer(df$MovieID), x = df$Rating)
-rownames(new_Rmat) = levels(df$UserID)
-colnames(new_Rmat) = levels(df$MovieID)
-new_Rmat = new('realRatingMatrix', data = new_Rmat)
+p.IBCF <- as.numeric(as(p.IBCF, "matrix"))
+
+sum(!is.na(p.IBCF))
+
+
+# initiate vector with same length as training data
+# one row vector with columns all the movies
+# NA values are ok
+# Dont need sparseMatrix
+# Create a new.user matrix 1 X ncol(train)
+# change colnames and rownames
+# as(new.user, 'realRatingMatrix')
+# colnames(new.user) = colnames(train)
+# rownames(new.user) = ‘’newuser’
+
 ```
 
 

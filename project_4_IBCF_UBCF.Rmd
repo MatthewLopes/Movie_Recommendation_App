@@ -1,0 +1,94 @@
+---
+title: "project_4_IBCF_UBCF"
+output: html_document
+date: "2022-12-04"
+---
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+myurl = "https://liangfgithub.github.io/MovieData/"
+ratings = read.csv(paste0(myurl, 'ratings.dat?raw=true'), 
+                   sep = ':',
+                   colClasses = c('integer', 'NULL'), 
+                   header = FALSE)
+colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
+i = paste0('u', ratings$UserID)
+j = paste0('m', ratings$MovieID)
+x = ratings$Rating
+tmp = data.frame(i, j, x, stringsAsFactors = T)
+Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
+rownames(Rmat) = levels(tmp$i)
+colnames(Rmat) = levels(tmp$j)
+Rmat = new('realRatingMatrix', data = Rmat)
+k = 20
+
+train = Rmat[1:500, ]
+test = Rmat[501, ]
+```
+
+```{r}
+data = as(train, "matrix")
+user.means = rowMeans(data, na.rm = TRUE)
+data = data - user.means
+newdata = as(Rmat[501, ], "matrix")
+newuser.mean = mean(newdata, na.rm = TRUE)
+newdata = newdata - newuser.mean
+```
+
+```{r}
+sim = rep(0, dim(data)[1])
+for(i in 1:length(sim)){
+  tmp.y = as.vector(newdata)
+  ind.y = which(!is.na(tmp.y))
+  tmp.x = data[i, ]
+  ind.x = which(!is.na(tmp.x))
+  ind = intersect(ind.x, ind.y)
+  if (length(ind) > 0){
+    tmp.x = tmp.x[ind]
+    tmp.y = tmp.y[ind]
+    sim[i] = sum(tmp.x * tmp.y) / sqrt(sum(tmp.x^2) * sum(tmp.y^2))
+  }
+}
+sim = (1 + sim)/2
+```
+
+```{r}
+sim1 = proxy::simil(data, newdata, method = "cosine")
+sim1 = (1 + sim1)/2
+top_k_ind = order(sim1, decreasing = TRUE)[1:20]
+top_k_train_user = data[top_k_ind,]
+sorted_sim1 = sim1[top_k_ind]
+
+```
+
+```{r}
+row_products = top_k_train_user * sorted_sim1
+
+mypred_numerator = rowSums(row_products, na.rm=TRUE)
+
+# find out which element in row_products on line 68 is not na
+
+mypred_denominator = rowSums(!is.na(row_products))
+
+mypred = mypred_numerator / mypred_denominator
+print(mypred)
+
+mypred = mypred + newuser.mean
+print(mypred)
+
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
