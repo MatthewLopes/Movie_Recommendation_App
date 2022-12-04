@@ -39,25 +39,26 @@ newdata = newdata - newuser.mean
 ```
 
 ```{r}
-sim = rep(0, dim(data)[1])
-for(i in 1:length(sim)){
-  tmp.y = as.vector(newdata)
-  ind.y = which(!is.na(tmp.y))
-  tmp.x = data[i, ]
-  ind.x = which(!is.na(tmp.x))
-  ind = intersect(ind.x, ind.y)
-  if (length(ind) > 0){
-    tmp.x = tmp.x[ind]
-    tmp.y = tmp.y[ind]
-    sim[i] = sum(tmp.x * tmp.y) / sqrt(sum(tmp.x^2) * sum(tmp.y^2))
-  }
-}
-sim = (1 + sim)/2
+# sim = rep(0, dim(data)[1])
+# for(i in 1:length(sim)){
+#   tmp.y = as.vector(newdata)
+#   ind.y = which(!is.na(tmp.y))
+#   tmp.x = data[i, ]
+#   ind.x = which(!is.na(tmp.x))
+#   ind = intersect(ind.x, ind.y)
+#   if (length(ind) > 0){
+#     tmp.x = tmp.x[ind]
+#     tmp.y = tmp.y[ind]
+#     sim[i] = sum(tmp.x * tmp.y) / sqrt(sum(tmp.x^2) * sum(tmp.y^2))
+#   }
+# }
+# sim = (1 + sim)/2
 ```
 
 ```{r}
 sim1 = proxy::simil(data, newdata, method = "cosine")
 sim1 = (1 + sim1)/2
+
 top_k_ind = order(sim1, decreasing = TRUE)[1:20]
 top_k_train_user = data[top_k_ind,]
 sorted_sim1 = sim1[top_k_ind]
@@ -68,6 +69,10 @@ sorted_sim1 = sim1[top_k_ind]
 row_products = top_k_train_user * sorted_sim1
 
 mypred_numerator = rowSums(row_products, na.rm=TRUE)
+
+print(mypred_numerator)
+
+dummy = rowSums(top_k_train_user, na.rm=TRUE)
 
 # find out which element in row_products on line 68 is not na
 
