@@ -66,23 +66,43 @@ sorted_sim1 = sim1[top_k_ind]
 ```
 
 ```{r}
+
+# Our mypred
+
 row_products = top_k_train_user * sorted_sim1
 
-mypred_numerator = rowSums(row_products, na.rm=TRUE)
+mypred_numerator = colSums(row_products, na.rm=TRUE)
 
-print(mypred_numerator)
-
-dummy = rowSums(top_k_train_user, na.rm=TRUE)
-
-# find out which element in row_products on line 68 is not na
-
-mypred_denominator = rowSums(!is.na(row_products))
+mypred_denominator = colSums(1 * (!is.na(top_k_train_user)) * sorted_sim1, na.rm=TRUE)
 
 mypred = mypred_numerator / mypred_denominator
-print(mypred)
 
 mypred = mypred + newuser.mean
-print(mypred)
+
+mypred[sapply(mypred, is.infinite)] <- NA
+
+mypred[sapply(mypred, is.nan)] <- NA
+
+user_rated_movie_indices = which(!is.na(newdata))
+
+mypred[user_rated_movie_indices] = NA
+```
+
+
+```{r}
+
+#recommender UBCF
+
+recommender.UBCF <- Recommender(train, method = "UBCF",
+                                parameter = list(normalize = 'center', 
+                                                 method = 'Cosine', 
+                                                 nn = 20))
+
+p.UBCF <- predict(recommender.UBCF, test, type="ratings")
+p.UBCF <- as.numeric(as(p.UBCF, "matrix"))
+
+sum(is.na(p.UBCF) != is.na(mypred)) ### should be zero
+max(abs(p.UBCF - mypred), na.rm = TRUE)  ### should be less than 1e-06
 
 ```
 
