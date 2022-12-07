@@ -41,23 +41,6 @@ newdata = newdata - newuser.mean
 ```
 
 ```{r}
-# sim = rep(0, dim(data)[1])
-# for(i in 1:length(sim)){
-#   tmp.y = as.vector(newdata)
-#   ind.y = which(!is.na(tmp.y))
-#   tmp.x = data[i, ]
-#   ind.x = which(!is.na(tmp.x))
-#   ind = intersect(ind.x, ind.y)
-#   if (length(ind) > 0){
-#     tmp.x = tmp.x[ind]
-#     tmp.y = tmp.y[ind]
-#     sim[i] = sum(tmp.x * tmp.y) / sqrt(sum(tmp.x^2) * sum(tmp.y^2))
-#   }
-# }
-# sim = (1 + sim)/2
-```
-
-```{r}
 sim1 = proxy::simil(data, newdata, method = "cosine")
 sim1 = (1 + sim1)/2
 
@@ -115,8 +98,12 @@ max(abs(p.UBCF - mypred), na.rm = TRUE)  ### should be less than 1e-06
 
 #IBCF
 
-data = as(train, "matrix") 
+data = as(train, "matrix")
+user.means = rowMeans(data, na.rm = TRUE)
+data = data - user.means
 newdata = as(Rmat[501, ], "matrix")
+newuser.mean = mean(newdata, na.rm = TRUE)
+newdata = newdata - newuser.mean
 
 sim_mat = proxy::simil(t(data), method = "cosine")
 sim_mat = as.matrix(sim_mat)
@@ -131,8 +118,9 @@ for(i in 1:n){
   sim_top30[i, neighbor_ids] = sim_mat[i, neighbor_ids]
 }
 
-
 # Numerator and Denominator
+
+newdata.notNA = !is.na(newdata) # where the newdata is not NA
 
 ibcf_num_mtx = matrix(NA, n, n) 
 
@@ -142,7 +130,9 @@ for(i in 1:n){
 
 ibcf_numerator = rowSums(ibcf_num_mtx, na.rm = TRUE)
 
-ibcf_denominator = rowSums(1 * (!is.na(sim_top30)), na.rm=TRUE)
+ibcf_denom_mtx = t(t(sim_top30) * drop(newdata.notNA))
+
+ibcf_denominator = rowSums(ibcf_denom_mtx, na.rm=TRUE)
 
 mypred_ibcf = ibcf_numerator / ibcf_denominator
 
@@ -154,6 +144,8 @@ mypred_ibcf[sapply(mypred_ibcf, is.infinite)] <- NA
 inds = which(!is.na(newdata))
 
 mypred_ibcf[inds] = NA
+
+mypred_ibcf = mypred_ibcf + newuser.mean
 
 ```
 
@@ -173,9 +165,5 @@ sum(is.na(p.IBCF) != is.na(mypred_ibcf))
 mydiff = abs(p.IBCF - mypred_ibcf)
 sum(mydiff[!is.na(mydiff)] > 1e-6) / sum(!is.na(mydiff)) 
 ```
-
-
-#a
-
 
 
