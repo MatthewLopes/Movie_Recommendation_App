@@ -42,7 +42,7 @@ small_image_url = "https://liangfgithub.github.io/MovieImages/"
 movies$image_url = sapply(movies$MovieID, 
                           function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 
-
+# Create columns with split genres
 movies = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
 
 i = paste0('u', ratings$UserID)
@@ -55,51 +55,48 @@ colnames(Rmat) = levels(tmp$j)
 Rmat = new('realRatingMatrix', data = Rmat)
 train = Rmat[1:1000, ]
 
+# Train the model
 recommender.UBCF <- Recommender(train, method = "UBCF",
                                 parameter = list(normalize = 'center', 
                                                  method = 'Cosine', 
                                                  nn = 20))
 
+# Get all movies that contain the genre inputted by the user
 get_movies_in_genre = function(genre) {
+  #filter dataset on genre in any of the genre columns
   movies_with_selected_genre = movies %>% filter(genre_1 == genre | genre_2 == genre | genre_3 == genre | genre_4 == genre | genre_5 == genre | genre_6 == genre)
-  
-  i = paste0('u', ratings$UserID)
-  j = paste0('m', ratings$MovieID)
-  x = ratings$Rating
-  tmp = data.frame(i, j, x, stringsAsFactors = T)
-  Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
-  rownames(Rmat) = levels(tmp$i)
-  colnames(Rmat) = levels(tmp$j)
-  Rmat = new('realRatingMatrix', data = Rmat)
-  train = Rmat[1:500, ]
-
-  recommender.IBCF <- Recommender(train, method = "IBCF",
-                                  parameter = list(normalize = 'center',
-                                                   method = 'Cosine',
-                                                   k = 30))
-  print(recommender.IBCF)
   
   return(movies_with_selected_genre)
 }
 
+# Gets movie recommendation depending if user selects by popularity or by highest ratings
 get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_criteria) {
+  
+  # Join our movies that pertain to the selected genre to our ratings dataset
   joined_data = inner_join(movies_with_selected_genre, ratings, by="MovieID")
   
   if(movie_rating_criteria == "rating") {
+    # Get all the mean reviews for each movies as well as total reviews
     grouped_data = joined_data %>%
       group_by(MovieID, Title, image_url) %>%
       dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
     
+    # Order movies with highest average ratings
     ordered_by_rating <- grouped_data[with(grouped_data,order(-Ratings_Mean)),]
+    # Remove movies with less than 1000 total ratings
     ordered_by_rating <- ordered_by_rating %>% filter(Count_of_Reviews > 1000)
+    # Select movies with top 10 average ratings
     top_10 <- ordered_by_rating[1:10,]
     
   } else if(movie_rating_criteria == "popular") {
+    # Get all the mean reviews for each movies as well as total reviews
     grouped_data = joined_data %>%
       group_by(MovieID, Title, image_url) %>%
       dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
     
+    # Order movies by number of reviews
     ordered_by_popularity <- grouped_data[with(grouped_data,order(-Count_of_Reviews)),]
+    # Select movies with highest number of reviews
     top_10 <- ordered_by_popularity[1:10,]
   }
   
@@ -141,6 +138,7 @@ shinyServer(function(input, output, session) {
       jsCode <- "document.querySelector('[data-widget=collapse]').click();"
       runjs(jsCode)
       
+      # Get top 10 movies based on user selected popularity or ratings
       top_10_movies <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top10)
       
       user_predicted_ids = 1:10
@@ -163,21 +161,28 @@ shinyServer(function(input, output, session) {
       # get the user's rating data
       value_list <- reactiveValuesToList(input)
       user_ratings <- get_user_ratings(value_list)
-      print(user_ratings)
       
+      # If user didnt rate any movies return empty list
       if(dim(user_ratings)[1] == 0) {
         return(user_ratings)
       }
       
+      #create dumby user
       test_i = 9999
+      # List of user rated MovieIDs
       test_j_with_m = user_ratings$MovieID
+      # List of user ratings
       test_x = user_ratings$Rating
+      # List of user rated MovieIDs without "m" at the beginning
       test_j = sub('.', '', test_j_with_m)
       
+      # Creating duplicate ratings df to modify
       test_ratings = as.data.frame(ratings)
       
+      # Create df with userID, movies, and ratings
       test_tmp = data.frame(UserID = test_i, MovieID = test_j, Rating = test_x)
       
+      # Bind our df to the duplicate ratings df 
       test_rbind = rbind(test_ratings, test_tmp)
       
       i = paste0('u', test_rbind$UserID)
@@ -185,30 +190,39 @@ shinyServer(function(input, output, session) {
       x = test_rbind$Rating
       
       tmp = data.frame(i, j, x, stringsAsFactors = T)
+      # Create sparseMatrix
       test_Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
       rownames(test_Rmat) = levels(tmp$i)
       colnames(test_Rmat) = levels(tmp$j)
+      # Create realRatingMatrix
       test_Rmat = new('realRatingMatrix', data = test_Rmat)
+      # Select our user inputted data
       new_user_rmat = test_Rmat[dim(test_Rmat)[1],]
       
       p.UBCF <- predict(recommender.UBCF, new_user_rmat, type="ratings")
       
       p.UBCF <- as.numeric(as(p.UBCF, "matrix"))
       
+      # Get indexes of all movies in order of top similarities
       all_movie_ind = order(p.UBCF, decreasing = TRUE)
+      # Get movieID from indices
       sorted_recommended_movies = colnames(test_Rmat)[all_movie_ind]
       
+      # Remove any movie the user rated
       for(movie in test_j_with_m) {
         top_recommended_movies_no_user_ratings = sorted_recommended_movies[sorted_recommended_movies != movie]
         sorted_recommended_movies = top_recommended_movies_no_user_ratings
       }
       
+      # Select top 10 movies
       top_recommended_movies = top_recommended_movies_no_user_ratings[1:10]
       
+      # Remove "m" from each movie
       top_recommended_movies = sub('.', '', top_recommended_movies)
       
       top_10_movies = data.frame(matrix(ncol = 4, nrow = 0))
       
+      # Join movie dataset to our list of movies to access all columns
       for(movie_id in top_recommended_movies){
         top_10_movies = rbind(top_10_movies, movies %>% filter(MovieID == movie_id))
       }
