@@ -3,6 +3,8 @@ library(gsubfn)
 library(tidyverse)
 library(dplyr)
 library(recommenderlab)
+library(rsconnect)
+library(shiny)
 
 # define functions
 get_user_ratings = function(value_list) {
