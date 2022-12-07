@@ -57,8 +57,8 @@ train = Rmat[1:1000, ]
 
 # Train the model
 recommender.UBCF <- Recommender(train, method = "UBCF",
-                                parameter = list(normalize = 'center', 
-                                                 method = 'Cosine', 
+                                parameter = list(normalize = 'center',
+                                                 method = 'Cosine',
                                                  nn = 20))
 
 # Get all movies that contain the genre inputted by the user
@@ -133,10 +133,6 @@ shinyServer(function(input, output, session) {
   # Calculate recommendations when the sbumbutton is clicked
   df_top10_popular_rating <- eventReactive(input$top10_popular_ratings_btn, {
     withBusyIndicatorServer("btn", { # showing the busy indicator
-      # hide the rating container
-      useShinyjs()
-      jsCode <- "document.querySelector('[data-widget=collapse]').click();"
-      runjs(jsCode)
       
       # Get top 10 movies based on user selected popularity or ratings
       top_10_movies <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top10)
@@ -161,6 +157,9 @@ shinyServer(function(input, output, session) {
       # get the user's rating data
       value_list <- reactiveValuesToList(input)
       user_ratings <- get_user_ratings(value_list)
+      
+      # If you run scenario 1 then scenario 2, the input creates an mNA movie with rating 1. If this is the case, remove the mNA value
+      user_ratings = user_ratings[user_ratings$MovieID != "mNA"]
       
       # If user didnt rate any movies return empty list
       if(dim(user_ratings)[1] == 0) {
@@ -198,9 +197,9 @@ shinyServer(function(input, output, session) {
       test_Rmat = new('realRatingMatrix', data = test_Rmat)
       # Select our user inputted data
       new_user_rmat = test_Rmat[dim(test_Rmat)[1],]
-      
+
       p.UBCF <- predict(recommender.UBCF, new_user_rmat, type="ratings")
-      
+
       p.UBCF <- as.numeric(as(p.UBCF, "matrix"))
       
       # Get indexes of all movies in order of top similarities
@@ -213,6 +212,7 @@ shinyServer(function(input, output, session) {
         top_recommended_movies_no_user_ratings = sorted_recommended_movies[sorted_recommended_movies != movie]
         sorted_recommended_movies = top_recommended_movies_no_user_ratings
       }
+
       
       # Select top 10 movies
       top_recommended_movies = top_recommended_movies_no_user_ratings[1:10]
@@ -221,7 +221,7 @@ shinyServer(function(input, output, session) {
       top_recommended_movies = sub('.', '', top_recommended_movies)
       
       top_10_movies = data.frame(matrix(ncol = 4, nrow = 0))
-      
+
       # Join movie dataset to our list of movies to access all columns
       for(movie_id in top_recommended_movies){
         top_10_movies = rbind(top_10_movies, movies %>% filter(MovieID == movie_id))
@@ -263,6 +263,7 @@ shinyServer(function(input, output, session) {
     num_rows <- 2
     num_movies <- 5
     recom_result <- df()
+    
     
     if(dim(recom_result)[1] == 0) {
       div(style = "text-align:center", strong("No movies rated. Please rate movies"))
