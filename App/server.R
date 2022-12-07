@@ -163,17 +163,16 @@ shinyServer(function(input, output, session) {
       # get the user's rating data
       value_list <- reactiveValuesToList(input)
       user_ratings <- get_user_ratings(value_list)
+      print(user_ratings)
       
-      print(dim(user_ratings)[1])
-      
-      # if(dim(user_ratings)[1] == 0) {
-      #   return(0)
-      # }
+      if(dim(user_ratings)[1] == 0) {
+        return(user_ratings)
+      }
       
       test_i = 9999
-      test_j = user_ratings$MovieID
+      test_j_with_m = user_ratings$MovieID
       test_x = user_ratings$Rating
-      test_j = sub('.', '', test_j)
+      test_j = sub('.', '', test_j_with_m)
       
       test_ratings = as.data.frame(ratings)
       
@@ -196,8 +195,15 @@ shinyServer(function(input, output, session) {
       
       p.UBCF <- as.numeric(as(p.UBCF, "matrix"))
       
-      top_10_ind = order(p.UBCF, decreasing = TRUE)[1:10]
-      top_recommended_movies = colnames(test_Rmat)[top_10_ind]
+      all_movie_ind = order(p.UBCF, decreasing = TRUE)
+      sorted_recommended_movies = colnames(test_Rmat)[all_movie_ind]
+      
+      for(movie in test_j_with_m) {
+        top_recommended_movies_no_user_ratings = sorted_recommended_movies[sorted_recommended_movies != movie]
+        sorted_recommended_movies = top_recommended_movies_no_user_ratings
+      }
+      
+      top_recommended_movies = top_recommended_movies_no_user_ratings[1:10]
       
       top_recommended_movies = sub('.', '', top_recommended_movies)
       
@@ -244,20 +250,24 @@ shinyServer(function(input, output, session) {
     num_movies <- 5
     recom_result <- df()
     
-    lapply(1:num_rows, function(i) {
-      list(fluidRow(lapply(1:num_movies, function(j) {
-        box(width = 2, status = "success", solidHeader = TRUE, title = paste0("Rank ", (i - 1) * num_movies + j),
-            
-            div(style = "text-align:center", 
-                a(img(src = recom_result$image_url[(i - 1) * num_movies + j], height = 150))
-            ),
-            div(style="text-align:center; font-size: 100%", 
-                strong(recom_result$Title[(i - 1) * num_movies + j])
-            )
-            
-        )        
-      }))) # columns
-    }) # rows
+    if(dim(recom_result)[1] == 0) {
+      div(style = "text-align:center", strong("No movies rated. Please rate movies"))
+    } else {
+      lapply(1:num_rows, function(i) {
+        list(fluidRow(lapply(1:num_movies, function(j) {
+          box(width = 2, status = "success", solidHeader = TRUE, title = paste0("Rank ", (i - 1) * num_movies + j),
+              
+              div(style = "text-align:center", 
+                  a(img(src = recom_result$image_url[(i - 1) * num_movies + j], height = 150))
+              ),
+              div(style="text-align:center; font-size: 100%", 
+                  strong(recom_result$Title[(i - 1) * num_movies + j])
+              )
+              
+          )        
+        }))) # columns
+      }) # rows
+    }
     
   }) # renderUI function
   

@@ -348,7 +348,9 @@ new_user_rmat = test_Rmat[dim(test_Rmat)[1],]
 # sum(!is.na(p.IBCF))
 
 
+test_j_m = c("m3078", "m3181", "m3307")
 
+print(test_j_m)
 
 
 
@@ -358,13 +360,14 @@ recommender.UBCF <- Recommender(train, method = "UBCF",
                                                  nn = 20))
 
 p.UBCF <- predict(recommender.UBCF, new_user_rmat, type="ratings")
-sum(!is.na(p.IBCF))
 
 p.UBCF <- as.numeric(as(p.UBCF, "matrix"))
-sum(!is.na(p.UBCF))
+print(p.UBCF)
 
-top_10_ind = order(p.UBCF, decreasing = TRUE)[1:10]
-top_recommended_movies = colnames(test_Rmat)[top_10_ind]
+all_movies_ind = order(p.UBCF, decreasing = TRUE)
+top_recommended_movies = colnames(test_Rmat)[all_movies_ind]
+top_recommended_movies_no_user_ratings = top_recommended_movies[top_recommended_movies != test_j_m]
+
 
 top_recommended_movies = sub('.', '', top_recommended_movies)
 
