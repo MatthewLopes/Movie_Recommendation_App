@@ -330,16 +330,12 @@ test_tmp = data.frame(UserID = test_i, MovieID = test_j, Rating = test_x, Timest
 
 test_rbind = rbind(test_ratings, test_tmp)
 
-#colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
 i = paste0('u', test_rbind$UserID)
 j = paste0('m', test_rbind$MovieID)
 x = test_rbind$Rating
 
 tmp = data.frame(i, j, x, stringsAsFactors = T)
 test_Rmat = sparseMatrix(as.integer(tmp$i), as.integer(tmp$j), x = tmp$x)
-# print(dim(Rmat)[1])
-# print(Rmat)
-# print(new_user_sparse_matrix)
 rownames(test_Rmat) = levels(tmp$i)
 colnames(test_Rmat) = levels(tmp$j)
 test_Rmat = new('realRatingMatrix', data = test_Rmat)
@@ -372,12 +368,21 @@ top_recommended_movies = colnames(test_Rmat)[top_10_ind]
 
 top_recommended_movies = sub('.', '', top_recommended_movies)
 
-top_10_movies = data.frame()
+top_10_movies = data.frame(matrix(ncol = 4, nrow = 0))
 
 for(movie_id in top_recommended_movies){
-  top_10_movies = movies %>% filter(MovieID == movie_id)
-  print(top_10_movies)
+  top_10_movies = rbind(top_10_movies, movies %>% filter(MovieID == movie_id))
+  #top_10_movies = movies %>% filter(MovieID == movie_id)
+  #print(top_10_movies)
 }
+
+
+
+
+
+
+movie = movies %>% filter(MovieID == 100)
+print(movie)
 
 
 ```
