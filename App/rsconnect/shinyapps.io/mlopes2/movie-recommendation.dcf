@@ -5,7 +5,7 @@ account: mlopes2
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 7842725
-bundleId: 6607715
+bundleId: 6608132
 url: https://mlopes2.shinyapps.io/movie-recommendation/
-when: 1670457189.35127
-lastSyncTime: 1670457189.35128
+when: 1670465425.11034
+lastSyncTime: 1670465425.11035

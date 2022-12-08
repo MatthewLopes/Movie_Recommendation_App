@@ -387,7 +387,7 @@ for(movie_id in top_recommended_movies){
 movie = movies %>% filter(MovieID == 100)
 print(movie)
 
-
+genre_top_movies = data.frame(matrix(ncol = 6, nrow = 0))
 ```
 
 

@@ -44,6 +44,10 @@ small_image_url = "https://liangfgithub.github.io/MovieImages/"
 movies$image_url = sapply(movies$MovieID, 
                           function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 
+# Create empty list that will hold top movies for each genre
+genre_top_movies = data.frame(matrix(ncol = 7, nrow = 0))
+colnames(genre_top_movies) = c('MovieID', 'Title', 'image_url', 'Ratings_Mean', 'Count_of_Reviews', 'recommendation_type', 'genre')
+
 # Create columns with split genres
 movies = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
 
@@ -72,8 +76,17 @@ get_movies_in_genre = function(genre) {
 }
 
 # Gets movie recommendation depending if user selects by popularity or by highest ratings
-get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_criteria) {
+get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_criteria, genre_selected) {
   
+  # Check to see if the selections have already been ran and saved
+  top_movies_already_ran = genre_top_movies %>% filter(recommendation_type == movie_rating_criteria &
+                                 genre == genre_selected)
+  
+  # If the list exists for user choices return the list
+  if(dim(top_movies_already_ran)[1] != 0) {
+    return(top_movies_already_ran)
+  }
+
   # Join our movies that pertain to the selected genre to our ratings dataset
   joined_data = inner_join(movies_with_selected_genre, ratings, by="MovieID")
   
@@ -90,6 +103,12 @@ get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_
     # Select movies with top 10 average ratings
     top_10 <- ordered_by_rating[1:10,]
     
+    # Create dataframe to add to global list so we dont have to rerun
+    top_10 = cbind(top_10, recommendation_type = movie_rating_criteria, genre = genre_selected)
+    
+    # Add to global list
+    genre_top_movies <<- rbind(genre_top_movies, as.data.frame(top_10))
+    
   } else if(movie_rating_criteria == "popular") {
     # Get all the mean reviews for each movies as well as total reviews
     grouped_data = joined_data %>%
@@ -100,6 +119,12 @@ get_most_popular_or_ratings = function(movies_with_selected_genre, movie_rating_
     ordered_by_popularity <- grouped_data[with(grouped_data,order(-Count_of_Reviews)),]
     # Select movies with highest number of reviews
     top_10 <- ordered_by_popularity[1:10,]
+    
+    # Create dataframe to add to global list so we dont have to rerun
+    top_10 = cbind(top_10, recommendation_type = movie_rating_criteria, genre = genre_selected)
+    
+    # Add to global list
+    genre_top_movies <<- rbind(genre_top_movies, as.data.frame(top_10))
   }
   
   return(top_10)
@@ -137,7 +162,7 @@ shinyServer(function(input, output, session) {
     withBusyIndicatorServer("btn", { # showing the busy indicator
       
       # Get top 10 movies based on user selected popularity or ratings
-      top_10_movies <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top10)
+      top_10_movies <- get_most_popular_or_ratings(get_movies_in_genre(input$genre), input$top10, input$genre)
       
       user_predicted_ids = 1:10
       recom_results <- data.table(Rank = 1:10, 
