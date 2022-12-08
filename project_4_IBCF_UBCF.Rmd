@@ -1,14 +1,22 @@
 ---
-title: "project_4_IBCF_UBCF"
+title: "Project_4"
 output: html_document
-date: "2022-12-04"
+date: "2022-12-07"
 ---
 
-```{r}
+### Matthew Lopes: mlopes2
+### Jack Kovach : jkovach2
+### UIN Used: Lopes - 672293688
+
+```{r message=FALSE, warning=FALSE}
 library(dplyr)
 library(Matrix)
 library(recommenderlab)
+library(tidyverse)
+library(DT)
 ```
+
+### Data Pre-Processing
 
 ```{r}
 myurl = "https://liangfgithub.github.io/MovieData/"
@@ -111,54 +119,73 @@ top_10 %>%
 
 
 ## UBCF
+
 ```{r}
 data = as(train, "matrix")
 user.means = rowMeans(data, na.rm = TRUE)
+
+#Remove User Means From Training Data
 data = data - user.means
 newdata = as(Rmat[501, ], "matrix")
+
+#Remove User Means From Test User Data
 newuser.mean = mean(newdata, na.rm = TRUE)
 newdata = newdata - newuser.mean
 ```
 
 ```{r}
+
+#Calculate Cosine Similarity
 sim1 = proxy::simil(data, newdata, method = "cosine")
+
+
+#Transformation step to get to [0,1] range
 sim1 = (1 + sim1)/2
 
+#Set K 
 k = 20
 
+#Find the indices of the top K Similarity Scores
 top_k_ind = order(sim1, decreasing = TRUE)[1:k]
+
+#Get the user rows at these indices to get corresponding top k users
 top_k_train_user = data[top_k_ind,]
+
+#Get the top K similarity scores in the same order as top k users
 sorted_sim1 = sim1[top_k_ind]
 
 ```
 
 ```{r}
 
-# Our mypred
+#Get Products for numerator : user multiplied by similarity score
+products = top_k_train_user * sorted_sim1
 
-row_products = top_k_train_user * sorted_sim1
+#Get the summations over the movies of the scores for the numerator
+mypred_numerator = colSums(products, na.rm=TRUE)
 
-mypred_numerator = colSums(row_products, na.rm=TRUE)
-
+#Get the denominator value by getting the summation of the similarity scores that are not NA
 mypred_denominator = colSums(1 * (!is.na(top_k_train_user)) * sorted_sim1, na.rm=TRUE)
 
+# Complete the equation
 mypred = mypred_numerator / mypred_denominator
 
+#Add the subtracted mean back from the beginning
 mypred = mypred + newuser.mean
 
+#Set infinite values and NANs to NA
 mypred[sapply(mypred, is.infinite)] <- NA
-
 mypred[sapply(mypred, is.nan)] <- NA
 
+#Get the indicies that are not NA in the test user and set those indices to NA in the prediction. Cannot predict movies the user has already chosen.
 user_rated_movie_indices = which(!is.na(newdata))
-
 mypred[user_rated_movie_indices] = NA
 ```
 
 
 ```{r}
 
-#recommender UBCF
+#Comparison of mypred for UBCF with recommenderlab UBCF
 
 recommender.UBCF <- Recommender(train, method = "UBCF",
                                 parameter = list(normalize = 'center', 
@@ -173,63 +200,80 @@ max(abs(p.UBCF - mypred), na.rm = TRUE)  ### should be less than 1e-06
 
 ```
 
+## IBCF
 
 ```{r}
 
-#IBCF
-
 data = as(train, "matrix")
 user.means = rowMeans(data, na.rm = TRUE)
+
+#Remove User Means From Training Data
 data = data - user.means
 newdata = as(Rmat[501, ], "matrix")
+
+#Remove User Means From Test User Data
 newuser.mean = mean(newdata, na.rm = TRUE)
 newdata = newdata - newuser.mean
 
+#Calculate Cosine Similarity
 sim_mat = proxy::simil(t(data), method = "cosine")
 sim_mat = as.matrix(sim_mat)
+
+#Transformation step to get to [0,1] range
 sim_mat = (1 + sim_mat)/2  
+
+#Get Matrix dimensions
 n = dim(sim_mat)[1]
 
+#Create a matrix to hold the top K=30 similarities 
 sim_top30 = matrix(NA, n, n) 
 colnames(sim_top30) = colnames(sim_mat)
 
+#Get the top K=30 similarities and store them in sim_top30
 for(i in 1:n){
   neighbor_ids = tail(order(sim_mat[i,], decreasing = FALSE, na.last=FALSE), 30)
   sim_top30[i, neighbor_ids] = sim_mat[i, neighbor_ids]
 }
 
-# Numerator and Denominator
+#Get test user data where values are not NA
+newdata.notNA = !is.na(newdata) 
 
-newdata.notNA = !is.na(newdata) # where the newdata is not NA
-
+# Create a matrix for calculating the numerator
 ibcf_num_mtx = matrix(NA, n, n) 
 
+# For each row, multiply newdata by the top30 row
 for(i in 1:n){ 
   ibcf_num_mtx[i,] = newdata * sim_top30[i,] 
 }
 
+#Get the rowSums of this matrix to complete the numerator calculation
 ibcf_numerator = rowSums(ibcf_num_mtx, na.rm = TRUE)
 
+#For the denominator, multiply the sim_top30 by the newData notNA matrix
 ibcf_denom_mtx = t(t(sim_top30) * drop(newdata.notNA))
 
+#Rowsums to of the denom matrix complete the denominator calculation
 ibcf_denominator = rowSums(ibcf_denom_mtx, na.rm=TRUE)
 
+#Complete the equation
 mypred_ibcf = ibcf_numerator / ibcf_denominator
 
+#Set infinite values and NANs to NA
 mypred_ibcf[sapply(mypred_ibcf, is.nan)] <- NA
-
 mypred_ibcf[sapply(mypred_ibcf, is.infinite)] <- NA
 
-#prof said we can do cleaning at the end
+#Get indicies where the test user is not NA and set to NA
 inds = which(!is.na(newdata))
-
 mypred_ibcf[inds] = NA
 
+#add back means from the beginning
 mypred_ibcf = mypred_ibcf + newuser.mean
 
 ```
 
 ```{r}
+#Comparison of mypred for UBCF with recommenderlab UBCF
+
 recommender.IBCF <- Recommender(train, method = "IBCF",
                                 parameter = list(normalize = 'center', 
                                                  method = 'Cosine', 
