@@ -17,6 +17,18 @@ ratings = read.csv(paste0(myurl, 'ratings.dat?raw=true'),
                    colClasses = c('integer', 'NULL'), 
                    header = FALSE)
 colnames(ratings) = c('UserID', 'MovieID', 'Rating', 'Timestamp')
+movies = readLines(paste0(myurl, 'movies.dat?raw=true'))
+movies = strsplit(movies, split = "::", fixed = TRUE, useBytes = TRUE)
+movies = matrix(unlist(movies), ncol = 3, byrow = TRUE)
+movies = data.frame(movies, stringsAsFactors = FALSE)
+colnames(movies) = c('MovieID', 'Title', 'Genres')
+movies$MovieID = as.integer(movies$MovieID)
+movies$Title = iconv(movies$Title, "latin1", "UTF-8")
+# Create columns with split genres
+movies = movies %>% separate(Genres, c("genre_1", "genre_2", "genre_3", "genre_4", "genre_5", "genre_6"), sep = "\\|")
+small_image_url = "https://liangfgithub.github.io/MovieImages/"
+movies$image_url = sapply(movies$MovieID, 
+                          function(x) paste0(small_image_url, x, '.jpg?raw=true'))
 i = paste0('u', ratings$UserID)
 j = paste0('m', ratings$MovieID)
 x = ratings$Rating
@@ -31,6 +43,74 @@ train = Rmat[1:500, ]
 test = Rmat[501, ]
 ```
 
+## Scenario 1
+```{r}
+# My favorite genre.You can select any genre that is listed in movies. But for testing purposes I used Action
+genre = "Action"
+
+# Filter dataset on genre in any of the genre columns
+movies_with_selected_genre = movies %>% filter(genre_1 == genre | genre_2 == genre | genre_3 == genre | genre_4 == genre | genre_5 == genre | genre_6 == genre)
+
+# Join our movies that pertain to the selected genre to our ratings dataset
+joined_data = inner_join(movies_with_selected_genre, ratings, by="MovieID")
+```
+
+### Recommendation Scheme 1
+#### Recommend movies based on highest average rating in the given genre with more than 1000 total ratings
+```{r}
+# Get all the mean reviews for each movies as well as total reviews
+grouped_data = joined_data %>%
+  group_by(MovieID, Title, image_url) %>%
+  dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
+
+# Order movies with highest average ratings
+ordered_by_rating <- grouped_data[with(grouped_data,order(-Ratings_Mean)),]
+# Remove movies with less than 1000 total ratings
+ordered_by_rating <- ordered_by_rating %>% filter(Count_of_Reviews > 1000)
+# Select movies with top 10 average ratings
+top_10 <- ordered_by_rating[1:10,]
+  
+# Display recommended movies
+top_10 %>%
+  mutate(Image = paste0('<img src="', 
+                        small_image_url, 
+                        MovieID, 
+                        '.jpg?raw=true"></img>')) %>%
+  select('Image', 'Title') %>%
+  datatable(class = "nowrap hover row-border", 
+            escape = FALSE, 
+            options = list(dom = 't',
+                          scrollX = TRUE, autoWidth = TRUE))
+```
+
+### Recommendation Scheme 2
+#### Recommend movies based on most number of ratings in the given genre
+```{r}
+# Get all the mean reviews for each movies as well as total reviews
+grouped_data = joined_data %>%
+  group_by(MovieID, Title, image_url) %>%
+  dplyr::summarize(Ratings_Mean = mean(Rating, na.rm=TRUE), Count_of_Reviews = sum(Rating, na.rm=TRUE))
+
+# Order movies by number of reviews
+ordered_by_popularity <- grouped_data[with(grouped_data,order(-Count_of_Reviews)),]
+# Select movies with highest number of reviews
+top_10 <- ordered_by_popularity[1:10,]
+
+# Display recommended movies
+top_10 %>%
+  mutate(Image = paste0('<img src="', 
+                        small_image_url, 
+                        MovieID, 
+                        '.jpg?raw=true"></img>')) %>%
+  select('Image', 'Title') %>%
+  datatable(class = "nowrap hover row-border", 
+            escape = FALSE, 
+            options = list(dom = 't',
+                          scrollX = TRUE, autoWidth = TRUE))
+```
+
+
+## UBCF
 ```{r}
 data = as(train, "matrix")
 user.means = rowMeans(data, na.rm = TRUE)
