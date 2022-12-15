@@ -1,4 +1,4 @@
-Project 4: Movie Recommendation
+# Project 4: Movie Recommendation
 
 System I: Recommendation based on genres
 Suppose you know the user's favorite genre. How would you recommend movies to him/her?
